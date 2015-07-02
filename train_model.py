@@ -17,8 +17,8 @@ P.gpu           = 0
 P.num_val       = 16
 P.num_val_batch = 1024
 P.datasize      = 128
-P.test_interval = 100
-P.disp_num      = 100
+P.test_interval = 500
+P.disp_num      = 500
 P.max_width     = 540
 P.max_height    = 420
 
@@ -40,8 +40,8 @@ def augment_data(x, y, s, deterministic=False):
     x_batch = np.zeros((P.batchsize, 1, P.edge, P.edge)).astype(np.float32)
     y_batch = np.zeros((P.batchsize, 1, P.edge-2*P.reduced, P.edge-2*P.reduced)).astype(np.float32)
     for j in range(s.shape[0]):
-        start_x = np.random.randint(s[j, 0] - P.edge)
-        start_y = np.random.randint(s[j, 1] - P.edge)
+        start_x = np.random.randint(s[j, 0] - P.edge + 2 * P.reduced)
+        start_y = np.random.randint(s[j, 1] - P.edge + 2 * P.reduced)
         x_batch[j, 0, :] = x[j:j+1, 0:1, start_x:start_x+P.edge, start_y:start_y+P.edge]
         y_batch[j, 0, :] = x[j:j+1, 0:1, start_x+P.reduced:start_x+P.edge-P.reduced, start_y+P.reduced:start_y+P.edge-P.reduced]
     if deterministic:
@@ -57,8 +57,8 @@ def import_data():
         y_val_batch = np.load(os.path.join(P.cache_dir, 'y_val_batch.npy'))
         return x_train, y_train, s_train, x_val_batch, y_val_batch
     train_list = os.listdir(os.path.join(P.data_dir, 'train'))
-    x_train = np.zeros((P.datasize, 1, P.max_width, P.max_height))
-    y_train = np.zeros((P.datasize, 1, P.max_width, P.max_height))
+    x_train = np.zeros((P.datasize, 1, P.max_width+2*P.reduced, P.max_height+2*P.reduced))
+    y_train = np.zeros((P.datasize, 1, P.max_width+2*P.reduced, P.max_height+2*P.reduced))
     s_train = np.zeros((P.datasize, 2))
 
     for count, i in enumerate(train_list[:P.datasize]):
@@ -69,14 +69,14 @@ def import_data():
         assert input_image.shape == output_image.shape
         s_train[count, 0] = input_image.shape[0]
         s_train[count, 1] = input_image.shape[1]
-        x_train[count:count+1, 0:1, 0:s_train[count, 0], 0:s_train[count, 1]] = input_image
-        y_train[count:count+1, 0:1, 0:s_train[count, 0], 0:s_train[count, 1]] = output_image
+        x_train[count:count+1, 0:1, P.reduced:s_train[count, 0]+P.reduced*2, P.reduced:s_train[count, 1]+2*P.reduced] = input_image
+        y_train[count:count+1, :1, P.reduced:s_train[count, 0]+2*P.reduced, P.reduced:s_train[count, 1]+2*P.reduced] = output_image
     num_val = len(train_list) - P.datasize
     x_val_batch = np.zeros((P.num_val_batch, 1, P.edge, P.edge)).astype(np.float32)
     y_val_batch = np.zeros((P.num_val_batch, 1, P.edge - 2 * P.reduced, P.edge - 2 * P.reduced)).astype(np.float32)
 
-    x_val = np.zeros((len(train_list) - P.datasize, 1, P.max_width, P.max_height))
-    y_val = np.zeros((len(train_list) - P.datasize, 1, P.max_width, P.max_height))
+    x_val = np.zeros((len(train_list) - P.datasize, 1, P.max_width+2*P.reduced, P.max_height+2*P.reduced))
+    y_val = np.zeros((len(train_list) - P.datasize, 1, P.max_width+2*P.reduced, P.max_height+2*P.reduced))
     s_val = np.zeros((len(train_list) - P.datasize, 2))
 
     for count, i in enumerate(train_list[P.datasize:]):
@@ -87,8 +87,8 @@ def import_data():
         assert input_image.shape == output_image.shape
         s_val[count, 0] = input_image.shape[0]
         s_val[count, 1] = input_image.shape[1]
-        x_val[count:count+1, 0:1, 0:s_val[count, 0], 0:s_val[count, 1]] = input_image
-        y_val[count:count+1, 0:1, 0:s_val[count, 0], 0:s_val[count, 1]] = output_image
+        x_val[count:count+1, 0:1, P.reduced:s_val[count, 0]+2*P.reduced, P.reduced:s_val[count, 1]+2*P.reduced] = input_image
+        y_val[count:count+1, 0:1, P.reduced:s_val[count, 0]+2*P.reduced, P.reduced:s_val[count, 1]+2*P.reduced] = output_image
     temp_count = 0
     while_flg = True
     while while_flg:
@@ -112,8 +112,9 @@ def train(model, optimizer):
     iter_num     = 0
     min_loss_val = float("inf")
 
-    sum_loss = 0
-    while True:
+    sum_loss  = 0
+    while_flg = True
+    while while_flg:
         # 厳密には画像を選んでからそれぞれでaugmentationするよりも画像をaugmentationしてからランダムに選んだ方が良い
         perm = np.random.permutation(P.datasize)
         for i in range(P.datasize/P.batchsize):
@@ -133,7 +134,7 @@ def train(model, optimizer):
             optimizer.update()
             sum_loss += float(cuda.to_cpu(loss.data)) * P.batchsize
             if iter_num % P.disp_num == 0:
-                printr('iter : ' + str(iter_num) + ', loss : ' + str(sum_loss))
+                print 'iter : ' + str(iter_num) + ', loss : ' + str(sum_loss)
                 sum_loss = 0
             if iter_num % P.test_interval == 0:
                 sum_loss_val = 0
@@ -152,6 +153,9 @@ def train(model, optimizer):
                     fname = 'model_' + str(min_loss_val).replace('.', 'd') + '.cPickle'
                     pickle.dump(model, open(os.path.join(P.model_dir, fname), 'wb'), -1)
                     print 'This model has been saved as', fname
+            if iter_num == P.max_iter:
+                while_flg = False
+                break
 
 def forward(x_data, y_data, model):
     x = Variable(x_data)
