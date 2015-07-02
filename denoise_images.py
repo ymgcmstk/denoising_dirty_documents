@@ -36,10 +36,10 @@ def import_data():
         input_image = 1 - input_image.astype(np.float32).T / 255
         s_test[count, 0] = input_image.shape[0]
         s_test[count, 1] = input_image.shape[1]
-        x_test[count:count+1, 0:1, P.reduced:s_test[count, 0]+2*P.reduced, P.reduced:s_test[count, 1]+2*P.reduced] = input_image
+        x_test[count:count+1, 0:1, P.reduced:s_test[count, 0]+P.reduced, P.reduced:s_test[count, 1]+P.reduced] = input_image
         name_test.append(i)
-    np.save(os.path.join(P.cache_dir, 'x_train'), x_train)
-    np.save(os.path.join(P.cache_dir, 's_train'), s_train)
+    np.save(os.path.join(P.cache_dir, 'x_test'), x_test)
+    np.save(os.path.join(P.cache_dir, 's_test'), s_test)
     pickledump(os.path.join(P.cache_dir, 'name_test.p'), name_test)
     return x_test, s_test, name_test
 
@@ -71,10 +71,9 @@ def forward(x_data, model):
     return h
 
 def main():
-    model = pickle.load(open(os.path.join(P.model_dir, P.model_path), 'rb'))
     if P.gpu >= 0:
         cuda.init(P.gpu)
-        model.to_gpu()
+    model = pickle.load(open(os.path.join(P.model_dir, P.model_name), 'rb'))
     test_and_save(model)
     return
 
