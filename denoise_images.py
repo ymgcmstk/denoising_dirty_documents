@@ -52,7 +52,12 @@ def test_and_save(model):
     x_test, s_test, name_test = import_data()
     y_test = np.zeros((len(name_test), P.max_height, P.max_width))
     for i, name in enumerate(name_test):
-        y = forward(x_test[i:i+1, 0:1, 0:s_test[i, 0]+2*P.reduced, 0:s_test[i, 1]+2*P.reduced], model)
+        printr(name)
+        x_batch = x_test[i:i+1, 0:1, 0:s_test[i, 0]+2*P.reduced, 0:s_test[i, 1]+2*P.reduced]
+        print x_batch.shape
+        if P.gpu >= 0:
+            x_batch = cuda.to_gpu(x_batch)
+        y = forward(x_batch, model)
         if P.gpu >= 0:
             y = cuda.to_cpu(y.data)
         else:
