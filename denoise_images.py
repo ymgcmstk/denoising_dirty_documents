@@ -44,7 +44,8 @@ def import_data():
     return x_test, s_test, name_test
 
 def save_as_image(mat, name):
-    assert len(y.shape) == 2
+    assert len(mat.shape) == 2
+    mat = np.uint8(mat * 255)
     img = Image.fromarray(mat)
     img.save(name)
 
@@ -64,8 +65,8 @@ def test_and_save(model):
             y = y.data
         assert y.shape[2] == s_test[i, 0] and y.shape[3] == s_test[i, 1]
         y = 1 - y.T
-        y_test[i, 0:s_test[i, 1], 0:s_test[i, 0]] = y
-        save_as_mat(y, os.path.join(P.result_dir, name))
+        y_test[i, 0:s_test[i, 1], 0:s_test[i, 0]] = y[:, :, 0, 0]
+        save_as_image(y[:, :, 0, 0], os.path.join(P.result_dir, name))
         # csvファイルとして保存する機能は未実装
 
 def forward(x_data, model):
