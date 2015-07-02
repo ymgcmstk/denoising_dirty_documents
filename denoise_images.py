@@ -53,7 +53,7 @@ def test_and_save(model):
     y_test = np.zeros((len(name_test), P.max_height, P.max_width))
     for i, name in enumerate(name_test):
         printr(name)
-        x_batch = x_test[i:i+1, 0:1, 0:s_test[i, 0]+2*P.reduced, 0:s_test[i, 1]+2*P.reduced]
+        x_batch = x_test[i:i+1, 0:1, 0:s_test[i, 0]+2*P.reduced, 0:s_test[i, 1]+2*P.reduced].astype(np.float32)
         print x_batch.shape
         if P.gpu >= 0:
             x_batch = cuda.to_gpu(x_batch)
@@ -62,8 +62,8 @@ def test_and_save(model):
             y = cuda.to_cpu(y.data)
         else:
             y = y.data
-        assert y.shape[0] == s_test[i, 0] and y.shape[1] == s_test[i, 1]
-        y = 1 - s_test[0, 0, s_test[i, 0], s_test[i, 1]].T
+        assert y.shape[2] == s_test[i, 0] and y.shape[3] == s_test[i, 1]
+        y = 1 - y.T
         y_test[i, 0:s_test[i, 1], 0:s_test[i, 0]] = y
         save_as_mat(y, os.path.join(P.result_dir, name))
         # csvファイルとして保存する機能は未実装
