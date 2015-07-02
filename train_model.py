@@ -69,8 +69,8 @@ def import_data():
         assert input_image.shape == output_image.shape
         s_train[count, 0] = input_image.shape[0]
         s_train[count, 1] = input_image.shape[1]
-        x_train[count:count+1, 0:1, P.reduced:s_train[count, 0]+P.reduced*2, P.reduced:s_train[count, 1]+2*P.reduced] = input_image
-        y_train[count:count+1, :1, P.reduced:s_train[count, 0]+2*P.reduced, P.reduced:s_train[count, 1]+2*P.reduced] = output_image
+        x_train[count:count+1, 0:1, P.reduced:s_train[count, 0]+P.reduced, P.reduced:s_train[count, 1]+P.reduced] = input_image
+        y_train[count:count+1, :1, P.reduced:s_train[count, 0]+P.reduced, P.reduced:s_train[count, 1]+P.reduced] = output_image
     num_val = len(train_list) - P.datasize
     x_val_batch = np.zeros((P.num_val_batch, 1, P.edge, P.edge)).astype(np.float32)
     y_val_batch = np.zeros((P.num_val_batch, 1, P.edge - 2 * P.reduced, P.edge - 2 * P.reduced)).astype(np.float32)
@@ -87,8 +87,8 @@ def import_data():
         assert input_image.shape == output_image.shape
         s_val[count, 0] = input_image.shape[0]
         s_val[count, 1] = input_image.shape[1]
-        x_val[count:count+1, 0:1, P.reduced:s_val[count, 0]+2*P.reduced, P.reduced:s_val[count, 1]+2*P.reduced] = input_image
-        y_val[count:count+1, 0:1, P.reduced:s_val[count, 0]+2*P.reduced, P.reduced:s_val[count, 1]+2*P.reduced] = output_image
+        x_val[count:count+1, 0:1, P.reduced:s_val[count, 0]+P.reduced, P.reduced:s_val[count, 1]+P.reduced] = input_image
+        y_val[count:count+1, 0:1, P.reduced:s_val[count, 0]+P.reduced, P.reduced:s_val[count, 1]+P.reduced] = output_image
     temp_count = 0
     while_flg = True
     while while_flg:
