@@ -14,12 +14,12 @@ P.data_dir      = './data/'
 P.cache_dir     = './cache/'
 P.model_dir     = './models/'
 P.result_dir    = './result/'
-P.model_name    = 'model_0d000137508546686.cPickle'
+P.model_name    = 'model_0d000641787213681.cPickle'
 P.gpu           = 0
 P.max_width     = 540
 P.max_height    = 420
 
-P.reduced = 4
+P.reduced = 6
 
 def import_data():
     if os.path.exists(os.path.join(P.cache_dir, 'x_test.npy')):
@@ -81,7 +81,7 @@ def forward(x_data, model):
     h = F.relu(model.conv2(h))
     h = F.relu(model.conv3(h))
     return h
-
+"""
 def forward(x_data, model):
     x = Variable(x_data)
     h = F.relu(model.conv1(x))
@@ -91,17 +91,18 @@ def forward(x_data, model):
     h = F.relu(model.conv5(h))
     y = F.relu(model.conv6(h))
     return y
-"""
 
+"""
 def forward(x_data, model):
     x = Variable(x_data)
     h = F.relu(model.conv1(x))
     h = F.relu(model.conv2(h))
     h = F.relu(model.conv3(h))
     h = F.relu(model.conv4(h))
+    h = F.relu(model.conv4(h))
     y = F.relu(model.conv5(h))
     return y
-
+"""
 
 def main():
     if P.gpu >= 0:

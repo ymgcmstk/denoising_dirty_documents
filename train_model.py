@@ -16,12 +16,12 @@ P.model_dir     = './models/'
 P.gpu           = 1
 P.num_val       = 16
 P.datasize      = 128
-P.test_interval = 5
+P.test_interval = 100
 P.disp_num      = 500
 P.max_width     = 540
 P.max_height    = 420
 
-P.reduced = 4
+P.reduced = 6
 
 P.max_iter      = pow(10, 5)
 P.batchsize     = 32
@@ -124,17 +124,29 @@ def train(model, optimizer):
             loss.backward()
             optimizer.update()
             sum_loss += float(cuda.to_cpu(loss.data)) * P.batchsize
-            printr(iter_num)
             if iter_num % P.disp_num == 0:
                 print 'iter : ' + str(iter_num) + ', loss : ' + str(sum_loss)
                 sum_loss = 0
             if iter_num % P.test_interval == 0:
                 sum_loss_val = 0
                 for i in range(x_val.shape[0]):
-                    x_batch_temp = x_val[i:i+1, 0:1, 0:s_val[i, 0]+2*P.reduced, 0:s_val[i, 1]+2*P.reduced]
+                    x_batch_temp = x_val[i:i+1, 0:1, 0:s_val[i, 0]/2+2*P.reduced, 0:s_val[i, 1]+2*P.reduced]
                     x_batch = np.zeros(x_batch_temp.shape).astype(np.float32)
                     x_batch[:] = x_batch_temp[:]
-                    y_batch_temp = y_val[i:i+1, 0:1, 0:s_val[i, 0], 0:s_val[i, 1]]
+                    y_batch_temp = y_val[i:i+1, 0:1, 0:s_val[i, 0]/2, 0:s_val[i, 1]]
+                    y_batch = np.zeros(y_batch_temp.shape).astype(np.float32)
+                    y_batch[:] = y_batch_temp[:]
+                    if P.gpu >= 0:
+                        x_batch = cuda.to_gpu(x_batch)
+                        y_batch = cuda.to_gpu(y_batch)
+                    optimizer.zero_grads()
+                    loss = forward(x_batch, y_batch, model)
+                    sum_loss_val += float(cuda.to_cpu(loss.data))
+
+                    x_batch_temp = x_val[i:i+1, 0:1, s_val[i, 0]/2:s_val[i, 0]+2*P.reduced, 0:s_val[i, 1]+2*P.reduced]
+                    x_batch = np.zeros(x_batch_temp.shape).astype(np.float32)
+                    x_batch[:] = x_batch_temp[:]
+                    y_batch_temp = y_val[i:i+1, 0:1, s_val[i, 0]/2:s_val[i, 0], 0:s_val[i, 1]]
                     y_batch = np.zeros(y_batch_temp.shape).astype(np.float32)
                     y_batch[:] = y_batch_temp[:]
                     if P.gpu >= 0:
@@ -166,15 +178,17 @@ def forward(x_data, y_data, model):
     h = F.relu(model.conv3(h))
     h = F.relu(model.conv4(h))
     h = F.relu(model.conv5(h))
+    h = F.relu(model.conv6(h))
     return F.mean_squared_error(h, y)
 
 def main():
     model = FunctionSet(
-        conv1 = F.Convolution2D( 1, 512, 9, stride=1),
-        conv2 = F.Convolution2D(512, 256, 1, stride=1),
-        conv3 = F.Convolution2D(256, 128, 1, stride=1),
-        conv4 = F.Convolution2D(128, 64, 1, stride=1),
-        conv5 = F.Convolution2D(64, 1, 1, stride=1)
+        conv1 = F.Convolution2D( 1, 128, 3, stride=1),
+        conv2 = F.Convolution2D(128, 128, 3, stride=1),
+        conv3 = F.Convolution2D(128, 128, 3, stride=1),
+        conv4 = F.Convolution2D(128, 128, 3, stride=1),
+        conv5 = F.Convolution2D(128, 128, 3, stride=1),
+        conv6 = F.Convolution2D(128, 1, 3, stride=1)
         )
     if P.gpu >= 0:
         cuda.init(P.gpu)
