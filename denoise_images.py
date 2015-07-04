@@ -21,28 +21,32 @@ P.gpu           = 0
 P.max_width     = 540
 P.max_height    = 420
 
+P.again = True
+
 P.reduced = 6
 
 def import_data():
-    if os.path.exists(os.path.join(P.cache_dir, 'x_test.npy')):
-        x_test    = np.load(os.path.join(P.cache_dir, 'x_test.npy'))
-        s_test    = np.load(os.path.join(P.cache_dir, 's_test.npy'))
-        name_test = pickleload(os.path.join(P.cache_dir, 'name_test.p'))
-        return x_test, s_test, name_test
-    test_list = os.listdir(os.path.join(P.data_dir, 'test'))
+    if P.again:
+        test_list = os.listdir(P.result_dir)
+    else:
+        test_list = os.listdir(os.path.join(P.data_dir, 'test'))
     x_test = np.zeros((len(test_list), 1, P.max_width+2*P.reduced, P.max_height+2*P.reduced))
     s_test = np.zeros((len(test_list), 2))
     name_test = []
-    for count, i in enumerate(test_list):
-        input_image = np.array(Image.open(os.path.join(P.data_dir, 'test', i)))
+    count = 0
+    for i in test_list:
+        if not '.png' in i:
+            continue
+        if P.again:
+            input_image = np.array(Image.open(os.path.join(P.result_dir, i)))
+        else:
+            input_image = np.array(Image.open(os.path.join(P.data_dir, 'test', i)))
         input_image = 1 - input_image.astype(np.float32).T / 255
         s_test[count, 0] = input_image.shape[0]
         s_test[count, 1] = input_image.shape[1]
         x_test[count:count+1, 0:1, P.reduced:s_test[count, 0]+P.reduced, P.reduced:s_test[count, 1]+P.reduced] = input_image
         name_test.append(i)
-    np.save(os.path.join(P.cache_dir, 'x_test'), x_test)
-    np.save(os.path.join(P.cache_dir, 's_test'), s_test)
-    pickledump(os.path.join(P.cache_dir, 'name_test.p'), name_test)
+        count += 1
     return x_test, s_test, name_test
 
 def save_as_image(mat, name):
