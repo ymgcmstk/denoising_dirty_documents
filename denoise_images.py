@@ -15,7 +15,7 @@ P.data_dir      = './data/'
 P.cache_dir     = './cache/'
 P.model_dir     = './models/'
 P.result_dir    = './result/'
-P.model_name    = 'model_0d000641787213681.cPickle'
+P.model_name    = 'model_0d266837294213.cPickle'
 P.submission    = 'submission.txt.gz'
 P.gpu           = 0
 P.max_width     = 540
@@ -64,7 +64,6 @@ def test_and_save(model):
     for i, name in enumerate(name_test):
         printr(name)
         x_batch = x_test[i:i+1, 0:1, 0:s_test[i, 0]+2*P.reduced, 0:s_test[i, 1]+2*P.reduced].astype(np.float32)
-        print x_batch.shape
         if P.gpu >= 0:
             x_batch = cuda.to_gpu(x_batch)
         y = forward(x_batch, model)
@@ -72,18 +71,13 @@ def test_and_save(model):
             y = cuda.to_cpu(y.data)
         else:
             y = y.data
-        try:
-            assert y.shape[2] == s_test[i, 0] and y.shape[3] == s_test[i, 1]
-        except:
-            print y.shape
-            print s_test[i, :]
-            exit()
+        assert y.shape[2] == s_test[i, 0] and y.shape[3] == s_test[i, 1]
         y = 1 - y.T
         y = y[:, :, 0, 0]
         y = np.fmax(y, np.zeros(y.shape))
-        y_test[i, 0:s_test[i, 1], 0:s_test[i, 0]] = y
+        #y_test[i, 0:s_test[i, 1], 0:s_test[i, 0]] = y
         save_as_image(y, os.path.join(P.result_dir, name))
-        it = numpy.nditer(y, flags=['multi_index'])
+        it = np.nditer(y, flags=['multi_index'])
         while not it.finished:
             pixel = it[0]
             i, j = it.multi_index
@@ -91,14 +85,6 @@ def test_and_save(model):
             it.iternext()
     f.close()
         # csvファイルとして保存する機能は未実装
-"""
-def forward(x_data, model):
-    x = Variable(x_data)
-    h = F.relu(model.conv1(x))
-    h = F.relu(model.conv2(h))
-    h = F.relu(model.conv3(h))
-    return h
-"""
 def forward(x_data, model):
     x = Variable(x_data)
     h = F.relu(model.conv1(x))
@@ -106,8 +92,8 @@ def forward(x_data, model):
     h = F.relu(model.conv3(h))
     h = F.relu(model.conv4(h))
     h = F.relu(model.conv5(h))
-    y = F.relu(model.conv6(h))
-    return y
+    h = F.relu(model.conv6(h))
+    return h
 
 """
 def forward(x_data, model):
@@ -117,8 +103,8 @@ def forward(x_data, model):
     h = F.relu(model.conv3(h))
     h = F.relu(model.conv4(h))
     h = F.relu(model.conv4(h))
-    y = F.relu(model.conv5(h))
-    return y
+    h = F.relu(model.conv5(h))
+    return h
 """
 
 def main():
