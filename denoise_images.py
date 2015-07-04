@@ -14,12 +14,12 @@ P.data_dir      = './data/'
 P.cache_dir     = './cache/'
 P.model_dir     = './models/'
 P.result_dir    = './result/'
-P.model_name    = ''
+P.model_name    = 'model_0d000137508546686.cPickle'
 P.gpu           = 0
 P.max_width     = 540
 P.max_height    = 420
 
-P.reduced = 3
+P.reduced = 4
 
 def import_data():
     if os.path.exists(os.path.join(P.cache_dir, 'x_test.npy')):
@@ -63,18 +63,45 @@ def test_and_save(model):
             y = cuda.to_cpu(y.data)
         else:
             y = y.data
-        assert y.shape[2] == s_test[i, 0] and y.shape[3] == s_test[i, 1]
+        try:
+            assert y.shape[2] == s_test[i, 0] and y.shape[3] == s_test[i, 1]
+        except:
+            print y.shape
+            print s_test[i, :]
+            exit()
         y = 1 - y.T
+        y = np.fmax(y, np.zeros(y.shape))
         y_test[i, 0:s_test[i, 1], 0:s_test[i, 0]] = y[:, :, 0, 0]
         save_as_image(y[:, :, 0, 0], os.path.join(P.result_dir, name))
         # csvファイルとして保存する機能は未実装
-
+"""
 def forward(x_data, model):
     x = Variable(x_data)
     h = F.relu(model.conv1(x))
     h = F.relu(model.conv2(h))
     h = F.relu(model.conv3(h))
     return h
+
+def forward(x_data, model):
+    x = Variable(x_data)
+    h = F.relu(model.conv1(x))
+    h = F.relu(model.conv2(h))
+    h = F.relu(model.conv3(h))
+    h = F.relu(model.conv4(h))
+    h = F.relu(model.conv5(h))
+    y = F.relu(model.conv6(h))
+    return y
+"""
+
+def forward(x_data, model):
+    x = Variable(x_data)
+    h = F.relu(model.conv1(x))
+    h = F.relu(model.conv2(h))
+    h = F.relu(model.conv3(h))
+    h = F.relu(model.conv4(h))
+    y = F.relu(model.conv5(h))
+    return y
+
 
 def main():
     if P.gpu >= 0:

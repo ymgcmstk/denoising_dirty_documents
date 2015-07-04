@@ -22,7 +22,7 @@ P.disp_num      = 500
 P.max_width     = 540
 P.max_height    = 420
 
-P.reduced = 3
+P.reduced = 4
 
 P.max_iter      = pow(10, 5)
 P.batchsize     = 32
@@ -43,7 +43,7 @@ def augment_data(x, y, s, deterministic=False):
         start_x = np.random.randint(s[j, 0] - P.edge + 2 * P.reduced)
         start_y = np.random.randint(s[j, 1] - P.edge + 2 * P.reduced)
         x_batch[j, 0, :] = x[j:j+1, 0:1, start_x:start_x+P.edge, start_y:start_y+P.edge]
-        y_batch[j, 0, :] = x[j:j+1, 0:1, start_x+P.reduced:start_x+P.edge-P.reduced, start_y+P.reduced:start_y+P.edge-P.reduced]
+        y_batch[j, 0, :] = y[j:j+1, 0:1, start_x+P.reduced:start_x+P.edge-P.reduced, start_y+P.reduced:start_y+P.edge-P.reduced]
     if deterministic:
         np.random.seed(num_for_seed)
     return x_batch, y_batch
@@ -163,13 +163,17 @@ def forward(x_data, y_data, model):
     h = F.relu(model.conv1(x))
     h = F.relu(model.conv2(h))
     h = F.relu(model.conv3(h))
+    h = F.relu(model.conv4(h))
+    h = F.relu(model.conv5(h))
     return F.mean_squared_error(h, y)
 
 def main():
     model = FunctionSet(
-        conv1 = F.Convolution2D( 1, 20, 3, stride=1),
-        conv2 = F.Convolution2D(20, 50, 3, stride=1),
-        conv3 = F.Convolution2D(50, 1, 3, stride=1)
+        conv1 = F.Convolution2D( 1, 512, 9, stride=1),
+        conv2 = F.Convolution2D(512, 256, 1, stride=1),
+        conv3 = F.Convolution2D(256, 128, 1, stride=1),
+        conv4 = F.Convolution2D(128, 64, 1, stride=1),
+        conv5 = F.Convolution2D(64, 1, 1, stride=1)
         )
     if P.gpu >= 0:
         cuda.init(P.gpu)
