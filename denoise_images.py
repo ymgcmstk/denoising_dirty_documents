@@ -8,6 +8,7 @@ import Image
 import os
 from easydict import EasyDict as edict
 from time import time
+import gzip
 
 P               = edict({})
 P.data_dir      = './data/'
@@ -15,6 +16,7 @@ P.cache_dir     = './cache/'
 P.model_dir     = './models/'
 P.result_dir    = './result/'
 P.model_name    = 'model_0d000641787213681.cPickle'
+P.submission    = 'submission.txt.gz'
 P.gpu           = 0
 P.max_width     = 540
 P.max_height    = 420
@@ -49,9 +51,16 @@ def save_as_image(mat, name):
     img = Image.fromarray(mat)
     img.save(name)
 
+"""
+This method is based on the part of the gdb's code.
+https://github.com/gdb/kaggle/blob/master/denoising-dirty-documents/submit.py
+Thanks.
+"""
 def test_and_save(model):
     x_test, s_test, name_test = import_data()
     y_test = np.zeros((len(name_test), P.max_height, P.max_width))
+    f = gzip.open(os.path.join(P.result_dir, P.submission), 'w')
+    f.write('id,value\n')
     for i, name in enumerate(name_test):
         printr(name)
         x_batch = x_test[i:i+1, 0:1, 0:s_test[i, 0]+2*P.reduced, 0:s_test[i, 1]+2*P.reduced].astype(np.float32)
@@ -70,9 +79,17 @@ def test_and_save(model):
             print s_test[i, :]
             exit()
         y = 1 - y.T
+        y = y[:, :, 0, 0]
         y = np.fmax(y, np.zeros(y.shape))
-        y_test[i, 0:s_test[i, 1], 0:s_test[i, 0]] = y[:, :, 0, 0]
-        save_as_image(y[:, :, 0, 0], os.path.join(P.result_dir, name))
+        y_test[i, 0:s_test[i, 1], 0:s_test[i, 0]] = y
+        save_as_image(y, os.path.join(P.result_dir, name))
+        it = numpy.nditer(y, flags=['multi_index'])
+        while not it.finished:
+            pixel = it[0]
+            i, j = it.multi_index
+            f.write('{}_{}_{},{}\n'.format(name.replace('.png', ''), i + 1, j + 1, pixel))
+            it.iternext()
+    f.close()
         # csvファイルとして保存する機能は未実装
 """
 def forward(x_data, model):
