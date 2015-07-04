@@ -15,13 +15,13 @@ P.data_dir      = './data/'
 P.cache_dir     = './cache/'
 P.model_dir     = './models/'
 P.result_dir    = './result/'
-P.model_name    = 'model_0d266837294213.cPickle'
+P.model_name    = 'model_0d266390153207.cPickle'
 P.submission    = 'submission.txt.gz'
 P.gpu           = 0
 P.max_width     = 540
 P.max_height    = 420
 
-P.again = True
+P.again = False
 
 P.reduced = 6
 

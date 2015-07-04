@@ -29,7 +29,7 @@ P.edge          = 48
 P.lr            = 0.01
 P.momentum      = 0.9
 P.decay         = 0.0005
-P.drop          = 3
+P.drop          = 2
 P.step_size     = 0.1
 
 # dropは何回lossが増えたらstep_sizeを小さくするか
@@ -160,7 +160,7 @@ def train(model, optimizer):
                     min_loss_val = sum_loss_val
                     fname = 'model_' + str(min_loss_val).replace('.', 'd') + '.cPickle'
                     pickle.dump(model, open(os.path.join(P.model_dir, fname), 'wb'), -1)
-                    print 'This model has been saved as', fname
+                    print 'This model has been saved as', fname, '( iter :', iter_num, ')'
                 else:
                     drop_count += 1
                     if drop_count == P.drop:
