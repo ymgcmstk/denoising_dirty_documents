@@ -15,7 +15,7 @@ P.data_dir      = './data/'
 P.cache_dir     = './cache/'
 P.model_dir     = './models/'
 P.result_dir    = './result/'
-P.model_name    = 'model_0d00174748982681.cPickle'
+P.model_name    = 'model_0d00172302431019.cPickle'
 P.submission    = 'submission.txt.gz'
 P.gpu           = 0
 P.max_width     = 540
@@ -79,7 +79,9 @@ def test_and_save(model):
         y = 1 - y.T
         y = y[:, :, 0, 0]
         y = np.fmax(y, np.zeros(y.shape))
-        #y_test[i, 0:s_test[i, 1], 0:s_test[i, 0]] = y
+        input_image = 1 - x_test[i, 0, P.reduced:s_test[i, 0]+P.reduced, P.reduced:s_test[i, 1]+P.reduced].T
+        assert y.shape == input_image.shape
+        y = np.r_[y, input_image]
         save_as_image(y, os.path.join(P.result_dir, name))
         it = np.nditer(y, flags=['multi_index'])
         while not it.finished:
@@ -88,7 +90,7 @@ def test_and_save(model):
             f.write('{}_{}_{},{}\n'.format(name.replace('.png', ''), i + 1, j + 1, pixel))
             it.iternext()
     f.close()
-        # csvファイルとして保存する機能は未実装
+
 def forward(x_data, model):
     x = Variable(x_data)
     h = F.relu(model.conv1(x))
