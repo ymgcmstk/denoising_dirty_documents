@@ -14,8 +14,8 @@ P               = edict({})
 P.data_dir      = './data/'
 P.cache_dir     = './cache/'
 P.model_dir     = './models/'
-P.model_name    = 'model_0d00164777244572.cPickle'
-#P.model_name    = None
+#P.model_name    = 'model_retrain_0d00167741214864.cPickle'
+P.model_name    = None
 P.gpu           = 1
 P.num_val       = 16
 P.datasize      = 128
@@ -24,12 +24,12 @@ P.disp_num      = 50
 P.max_width     = 540
 P.max_height    = 420
 
-P.reduced = 6
+P.reduced = 4
 
 P.max_iter      = pow(10, 5)
 P.batchsize     = 32
 P.edge          = 48
-P.lr            = 0.0001
+P.lr            = 0.01
 P.momentum      = 0.9
 P.decay         = 0.0005
 P.drop          = 0
@@ -59,24 +59,23 @@ def augment_data(x, y, s, deterministic=False):
     return x_batch, y_batch
 
 def import_data():
-    #train_list = os.listdir(os.path.join(P.data_dir, 'train'))
-    #print train_list[P.datasize:]
-    #exit()
-    if os.path.exists(os.path.join(P.cache_dir, 'x_train.npy')):
-        x_train = np.load(os.path.join(P.cache_dir, 'x_train.npy'))
-        y_train = np.load(os.path.join(P.cache_dir, 'y_train.npy'))
-        s_train = np.load(os.path.join(P.cache_dir, 's_train.npy'))
-        x_val   = np.load(os.path.join(P.cache_dir, 'x_val.npy'))
-        y_val   = np.load(os.path.join(P.cache_dir, 'y_val.npy'))
-        s_val   = np.load(os.path.join(P.cache_dir, 's_val.npy'))
+    if os.path.exists(os.path.join(P.cache_dir, 'x_retrain.npy')) and False:
+        x_train = np.load(os.path.join(P.cache_dir, 'x_retrain.npy'))
+        y_train = np.load(os.path.join(P.cache_dir, 'y_retrain.npy'))
+        s_train = np.load(os.path.join(P.cache_dir, 's_retrain.npy'))
+        x_val   = np.load(os.path.join(P.cache_dir, 'x_reval.npy'))
+        y_val   = np.load(os.path.join(P.cache_dir, 'y_reval.npy'))
+        s_val   = np.load(os.path.join(P.cache_dir, 's_reval.npy'))
         return x_train, y_train, s_train, x_val, y_val, s_val
+    # ここはtrainでオッケー
     train_list = os.listdir(os.path.join(P.data_dir, 'train'))
+
     x_train = np.zeros((P.datasize, 1, P.max_width+2*P.reduced, P.max_height+2*P.reduced))
     y_train = np.zeros((P.datasize, 1, P.max_width+2*P.reduced, P.max_height+2*P.reduced))
     s_train = np.zeros((P.datasize, 2))
 
     for count, i in enumerate(train_list[:P.datasize]):
-        input_image  = np.array(Image.open(os.path.join(P.data_dir, 'train', i)))
+        input_image  = np.array(Image.open(os.path.join(P.data_dir, 'retrain', i)))
         input_image = 1 - input_image.astype(np.float32).T / 255
         output_image = np.array(Image.open(os.path.join(P.data_dir, 'train_cleaned', i)))
         output_image = 1 - output_image.astype(np.float32).T / 255
@@ -92,7 +91,7 @@ def import_data():
     s_val = np.zeros((num_val, 2))
 
     for count, i in enumerate(train_list[P.datasize:]):
-        input_image  = np.array(Image.open(os.path.join(P.data_dir, 'train', i)))
+        input_image  = np.array(Image.open(os.path.join(P.data_dir, 'retrain', i)))
         input_image = 1 - input_image.astype(np.float32).T / 255
         output_image = np.array(Image.open(os.path.join(P.data_dir, 'train_cleaned', i)))
         output_image = 1 - output_image.astype(np.float32).T / 255
@@ -101,12 +100,12 @@ def import_data():
         s_val[count, 1] = input_image.shape[1]
         x_val[count:count+1, 0:1, P.reduced:s_val[count, 0]+P.reduced, P.reduced:s_val[count, 1]+P.reduced] = input_image
         y_val[count:count+1, 0:1, P.reduced:s_val[count, 0]+P.reduced, P.reduced:s_val[count, 1]+P.reduced] = output_image
-    np.save(os.path.join(P.cache_dir, 'x_train'), x_train)
-    np.save(os.path.join(P.cache_dir, 'y_train'), y_train)
-    np.save(os.path.join(P.cache_dir, 's_train'), s_train)
-    np.save(os.path.join(P.cache_dir, 'x_val'), x_val.astype(np.float32))
-    np.save(os.path.join(P.cache_dir, 'y_val'), y_val.astype(np.float32))
-    np.save(os.path.join(P.cache_dir, 's_val'), s_val)
+    np.save(os.path.join(P.cache_dir, 'x_retrain'), x_train)
+    np.save(os.path.join(P.cache_dir, 'y_retrain'), y_train)
+    np.save(os.path.join(P.cache_dir, 's_retrain'), s_train)
+    np.save(os.path.join(P.cache_dir, 'x_reval'), x_val.astype(np.float32))
+    np.save(os.path.join(P.cache_dir, 'y_reval'), y_val.astype(np.float32))
+    np.save(os.path.join(P.cache_dir, 's_reval'), s_val)
     return x_train, y_train, s_train, x_val.astype(np.float32), y_val.astype(np.float32), s_val
 
 def train(model, optimizer):
@@ -171,7 +170,7 @@ def train(model, optimizer):
                 sum_loss_val /= x_val.shape[0]
                 if sum_loss_val < min_loss_val:
                     min_loss_val = sum_loss_val
-                    fname = 'model_' + str(min_loss_val).replace('.', 'd') + '.cPickle'
+                    fname = 'model_retrain_' + str(min_loss_val).replace('.', 'd') + '.cPickle'
                     pickle.dump(model, open(os.path.join(P.model_dir, fname), 'wb'), -1)
                     print 'This model has been saved as', fname, '(iter :', iter_num, ')'
                 else:
@@ -190,37 +189,14 @@ def forward(x_data, y_data, model):
     h = F.relu(model.conv1(x))
     h = F.relu(model.conv2(h))
     h = F.relu(model.conv3(h))
-    h = F.relu(model.conv4(h))
-    h = F.relu(model.conv5(h))
-    h = F.relu(model.conv6(h))
     return F.mean_squared_error(h, y)
-
-def forward2(x_data, y_data, model):
-    x = Variable(x_data)
-    y = Variable(y_data)
-    h = F.relu(model.conv1(x))
-    h = F.relu(model.conv2(h))
-    h = F.relu(model.conv3(h))
-    h = F.relu(model.conv4(h))
-    h = F.relu(model.conv5(h))
-    h = F.relu(model.conv6(h))
-    y_size = y_data.shape[-2] * y_data.shape[-1]
-    assert y_data.shape[-1] > 10
-    assert y_data.shape[-2] > 10
-    h_np = cuda.to_cpu(h.data)
-    h_min = np.fmin(h_np, np.ones(h_np.shape)) - y_data
-    return np.linalg.norm(h_min)/math.sqrt(y_size)
-
 
 def main():
     if P.model_name is None:
         model = FunctionSet(
-            conv1 = F.Convolution2D( 1, 128, 3, stride=1),
-            conv2 = F.Convolution2D(128, 128, 3, stride=1),
-            conv3 = F.Convolution2D(128, 128, 3, stride=1),
-            conv4 = F.Convolution2D(128, 128, 3, stride=1),
-            conv5 = F.Convolution2D(128, 128, 3, stride=1),
-            conv6 = F.Convolution2D(128, 1, 3, stride=1)
+            conv1 = F.Convolution2D( 1, 256, 9, stride=1),
+            conv2 = F.Convolution2D(256, 256, 1, stride=1),
+            conv3 = F.Convolution2D(256, 1, 1, stride=1),
             )
         if P.gpu >= 0:
             cuda.init(P.gpu)
