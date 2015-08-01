@@ -16,13 +16,19 @@ P.cache_dir     = './cache/'
 P.model_dir     = './models/'
 P.result_dir    = './result/'
 P.model_names   = [
+    'model_full_1000.cPickle'
+]
+"""
+P.model_names   = [
     'model_0d00149540185157_seed_None_ds_128.cPickle',
     'model_0d00159264426111_seed_1_ds_128.cPickle',
     'model_0d0015791014921_seed_2_ds_128.cPickle',
     'model_0d00194685728638_seed_3_ds_128.cPickle',
-    'model_0d0016670271234_seed_4_ds_128.cPickle'
+    'model_0d0016670271234_seed_4_ds_128.cPickle',
+    'model_full_1000.cPickle'
 ]
-P.submission    = 'submission_5ens.txt.gz'
+"""
+P.submission    = 'submission_full_and_5ens.txt.gz'
 P.gpu           = 1
 P.use_mean_var  = False
 P.max_width     = 540

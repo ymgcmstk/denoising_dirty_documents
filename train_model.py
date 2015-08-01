@@ -15,13 +15,12 @@ P               = edict({})
 P.data_dir      = './data/'
 P.cache_dir     = './cache/'
 P.model_dir     = './models/'
-#P.model_name    = 'model_0d00150550480794.cPickle'
 P.model_name    = None
 P.prefix        = ''
 P.gpu           = 1
 P.num_val       = 16 # 16
 P.datasize      = 128 # 144
-P.random_seed   = 4
+P.random_seed   = 1
 P.use_mean_var  = False
 P.test_interval = 10
 P.disp_num      = 50
@@ -39,13 +38,11 @@ P.momentum      = 0.9
 P.decay         = 0.0005
 P.drop          = 0
 P.step_size     = 0.1
-P.epoch_count   = 1000
+P.epoch_count   = 1500
 
 P.add_noise     = 0
 
-# dropは何回lossが増えたらstep_sizeを小さくするか
 def augment_data(x, m, y, s, deterministic=False):
-    # TODO:random noise
     if deterministic:
         num_for_seed = int(np.random.random()*pow(2,16))
         np.random.seed(0)
@@ -67,9 +64,6 @@ def augment_data(x, m, y, s, deterministic=False):
     return x_batch, m_batch, y_batch
 
 def import_data(again=False, random_seed=None):
-    #train_list = os.listdir(os.path.join(P.data_dir, 'train'))
-    #print train_list[P.datasize:]
-    #exit()
     start_time = time()
     if os.path.exists(os.path.join(P.cache_dir, 'x_train.npy')) and not again:
         x_train = np.load(os.path.join(P.cache_dir, 'x_train.npy'))
@@ -142,7 +136,6 @@ def train(model, optimizer):
     drop_count = 0
     sum_loss   = 0
     for epoch_num in range(P.epoch_count):
-        # 厳密には画像を選んでからそれぞれでaugmentationするよりも画像をaugmentationしてからランダムに選んだ方が良い
         perm = np.random.permutation(P.datasize)
         for i in range(P.datasize/P.batchsize):
             iter_num += 1
@@ -163,6 +156,9 @@ def train(model, optimizer):
             sum_loss += float(cuda.to_cpu(loss.data)) * P.batchsize
         print 'epoch : ' + str(epoch_num + 1) + ', loss : ' + str(sum_loss)
         sum_loss = 0
+
+        if (epoch_num + 1) == 1000:
+            optimizer.lr = 0.001
 
         if (epoch_num + 1) % P.test_interval is not 0:
             continue
@@ -286,8 +282,6 @@ def main():
             cuda.init(P.gpu)
         model = pickle.load(open(os.path.join(P.model_dir, P.model_name), 'rb'))
 
-    optimizer = optimizers.MomentumSGD(lr=P.lr, momentum=P.momentum)
-    #optimizer = optimizers.SGD(lr=P.lr)
     optimizer = optimizers.MomentumSGD(lr=P.lr, momentum=P.momentum)
     optimizer.setup(model.collect_parameters())
 
