@@ -14,7 +14,7 @@ P               = edict({})
 P.data_dir      = './data/'
 P.cache_dir     = './cache/'
 P.model_dir     = './models/'
-#P.model_name    = 'model_0d00159185411576.cPickle'
+#P.model_name    = 'model_0d00152234180314.cPickle'
 P.model_name    = None
 P.gpu           = 1
 P.num_val       = 16
@@ -24,13 +24,13 @@ P.disp_num      = 50
 P.max_width     = 540
 P.max_height    = 420
 
-P.reduced       = 5
+P.reduced       = 6
 P.import_again  = True
 
 P.max_iter      = pow(10, 5)
 P.batchsize     = 32
 P.edge          = 48
-P.lr            = 0.01
+P.lr            = 0.001
 P.momentum      = 0.9
 P.decay         = 0.0005
 P.drop          = 0
@@ -40,17 +40,19 @@ P.epoch_count   = 1000
 P.add_noise     = 0
 
 # dropは何回lossが増えたらstep_sizeを小さくするか
-def augment_data(x, y, s, deterministic=False):
+def augment_data(x, m, y, s, deterministic=False):
     # TODO:random noise
     if deterministic:
         num_for_seed = int(np.random.random()*pow(2,16))
         np.random.seed(0)
     x_batch = np.zeros((P.batchsize, 1, P.edge, P.edge)).astype(np.float32)
+    m_batch = np.zeros((P.batchsize, 2, P.edge-2*P.reduced, P.edge-2*P.reduced)).astype(np.float32)
     y_batch = np.zeros((P.batchsize, 1, P.edge-2*P.reduced, P.edge-2*P.reduced)).astype(np.float32)
     for j in range(s.shape[0]):
         start_x = np.random.randint(s[j, 0] - P.edge + 2 * P.reduced)
         start_y = np.random.randint(s[j, 1] - P.edge + 2 * P.reduced)
         x_batch[j, 0, :] = x[j:j+1, 0:1, start_x:start_x+P.edge, start_y:start_y+P.edge]
+        m_batch[j, 0:2, :] = m[j:j+1, 0:2, start_x+P.reduced:start_x+P.edge-P.reduced, start_y+P.reduced:start_y+P.edge-P.reduced]
         y_batch[j, 0, :] = y[j:j+1, 0:1, start_x+P.reduced:start_x+P.edge-P.reduced, start_y+P.reduced:start_y+P.edge-P.reduced]
     if P.add_noise > 0:
         x_batch += P.add_noise * np.random.random(x_batch.shape)
@@ -58,7 +60,7 @@ def augment_data(x, y, s, deterministic=False):
         x_batch = np.fmin(x_batch, np.ones(x_batch.shape)).astype(np.float32)
     if deterministic:
         np.random.seed(num_for_seed)
-    return x_batch, y_batch
+    return x_batch, m_batch, y_batch
 
 def import_data(again=False):
     #train_list = os.listdir(os.path.join(P.data_dir, 'train'))
@@ -67,15 +69,18 @@ def import_data(again=False):
     start_time = time()
     if os.path.exists(os.path.join(P.cache_dir, 'x_train.npy')) and not again:
         x_train = np.load(os.path.join(P.cache_dir, 'x_train.npy'))
+        m_train = np.load(os.path.join(P.cache_dir, 'm_train.npy'))
         y_train = np.load(os.path.join(P.cache_dir, 'y_train.npy'))
         s_train = np.load(os.path.join(P.cache_dir, 's_train.npy'))
         x_val   = np.load(os.path.join(P.cache_dir, 'x_val.npy'))
+        m_val   = np.load(os.path.join(P.cache_dir, 'm_val.npy'))
         y_val   = np.load(os.path.join(P.cache_dir, 'y_val.npy'))
         s_val   = np.load(os.path.join(P.cache_dir, 's_val.npy'))
         print '[import_data] elapsed time :', elapsed
-        return x_train, y_train, s_train, x_val, y_val, s_val
+        return x_train, m_train, y_train, s_train, x_val, m_val, y_val, s_val
     train_list = os.listdir(os.path.join(P.data_dir, 'train'))
     x_train = np.zeros((P.datasize, 1, P.max_width+2*P.reduced, P.max_height+2*P.reduced))
+    m_train = np.zeros((P.datasize, 2, P.max_width+2*P.reduced, P.max_height+2*P.reduced)).astype(np.float32)
     y_train = np.zeros((P.datasize, 1, P.max_width+2*P.reduced, P.max_height+2*P.reduced))
     s_train = np.zeros((P.datasize, 2))
 
@@ -88,10 +93,13 @@ def import_data(again=False):
         s_train[count, 0] = input_image.shape[0]
         s_train[count, 1] = input_image.shape[1]
         x_train[count:count+1, 0:1, P.reduced:s_train[count, 0]+P.reduced, P.reduced:s_train[count, 1]+P.reduced] = input_image
+        m_train[count:count+1, 0:1, P.reduced:s_train[count, 0]+P.reduced, P.reduced:s_train[count, 1]+P.reduced] = np.repeat(input_image.mean(axis=0)[:, np.newaxis], s_train[count, 0], axis=1).T
+        m_train[count:count+1, 1:2, P.reduced:s_train[count, 0]+P.reduced, P.reduced:s_train[count, 1]+P.reduced] = np.repeat(input_image.var(axis=0)[:, np.newaxis], s_train[count, 0], axis=1).T
         y_train[count:count+1, 0:1, P.reduced:s_train[count, 0]+P.reduced, P.reduced:s_train[count, 1]+P.reduced] = output_image
     num_val = len(train_list) - P.datasize
 
     x_val = np.zeros((num_val, 1, P.max_width+2*P.reduced, P.max_height+2*P.reduced))
+    m_val = np.zeros((num_val, 2, P.max_width+2*P.reduced, P.max_height+2*P.reduced))
     y_val = np.zeros((num_val, 1, P.max_width+2*P.reduced, P.max_height+2*P.reduced))
     s_val = np.zeros((num_val, 2))
 
@@ -104,19 +112,23 @@ def import_data(again=False):
         s_val[count, 0] = input_image.shape[0]
         s_val[count, 1] = input_image.shape[1]
         x_val[count:count+1, 0:1, P.reduced:s_val[count, 0]+P.reduced, P.reduced:s_val[count, 1]+P.reduced] = input_image
+        m_val[count:count+1, 0:1, P.reduced:s_val[count, 0]+P.reduced, P.reduced:s_val[count, 1]+P.reduced] = np.repeat(input_image.mean(axis=0)[:, np.newaxis], s_val[count, 0], axis=1).T
+        m_val[count:count+1, 1:2, P.reduced:s_val[count, 0]+P.reduced, P.reduced:s_val[count, 1]+P.reduced] = np.repeat(input_image.var(axis=0)[:, np.newaxis], s_val[count, 0], axis=1).T
         y_val[count:count+1, 0:1, P.reduced:s_val[count, 0]+P.reduced, P.reduced:s_val[count, 1]+P.reduced] = output_image
     np.save(os.path.join(P.cache_dir, 'x_train'), x_train)
+    np.save(os.path.join(P.cache_dir, 'm_train'), m_train)
     np.save(os.path.join(P.cache_dir, 'y_train'), y_train)
     np.save(os.path.join(P.cache_dir, 's_train'), s_train)
     np.save(os.path.join(P.cache_dir, 'x_val'), x_val.astype(np.float32))
+    np.save(os.path.join(P.cache_dir, 'm_val'), m_val.astype(np.float32))
     np.save(os.path.join(P.cache_dir, 'y_val'), y_val.astype(np.float32))
     np.save(os.path.join(P.cache_dir, 's_val'), s_val)
     elapsed = time() - start_time
     print '[import_data] elapsed time :', elapsed
-    return x_train, y_train, s_train, x_val.astype(np.float32), y_val.astype(np.float32), s_val
+    return x_train, m_train, y_train, s_train, x_val.astype(np.float32), m_val.astype(np.float32), y_val.astype(np.float32), s_val
 
 def train(model, optimizer):
-    x_train, y_train, s_train, x_val, y_val, s_val = import_data(P.import_again)
+    x_train, m_train, y_train, s_train, x_val, m_val, y_val, s_val = import_data(P.import_again)
     iter_num     = 0
     min_loss_val = float("inf")
 
@@ -128,14 +140,16 @@ def train(model, optimizer):
         for i in range(P.datasize/P.batchsize):
             iter_num += 1
             x_batch = x_train[perm[P.batchsize*i:P.batchsize*(i+1)]]
+            m_batch = m_train[perm[P.batchsize*i:P.batchsize*(i+1)]]
             y_batch = y_train[perm[P.batchsize*i:P.batchsize*(i+1)]]
             s_batch = s_train[perm[P.batchsize*i:P.batchsize*(i+1)]]
-            x_batch, y_batch = augment_data(x_batch, y_batch, s_batch)
+            x_batch, m_batch, y_batch = augment_data(x_batch, m_batch, y_batch, s_batch)
             if P.gpu >= 0:
                 x_batch = cuda.to_gpu(x_batch)
+                m_batch = cuda.to_gpu(m_batch)
                 y_batch = cuda.to_gpu(y_batch)
             optimizer.zero_grads()
-            loss = forward(x_batch, y_batch, model)
+            loss = forward(x_batch, m_batch, y_batch, model)
             optimizer.weight_decay(P.decay)
             loss.backward()
             optimizer.update()
@@ -151,27 +165,35 @@ def train(model, optimizer):
             x_batch_temp = x_val[i:i+1, 0:1, 0:s_val[i, 0]/2+2*P.reduced, 0:s_val[i, 1]+2*P.reduced]
             x_batch = np.zeros(x_batch_temp.shape).astype(np.float32)
             x_batch[:] = x_batch_temp[:]
+            m_batch_temp = m_val[i:i+1, 0:2, P.reduced:s_val[i, 0]/2+P.reduced, P.reduced:s_val[i, 1]+P.reduced]
+            m_batch = np.zeros(m_batch_temp.shape).astype(np.float32)
+            m_batch[:] = m_batch_temp[:]
             y_batch_temp = y_val[i:i+1, 0:1, P.reduced:s_val[i, 0]/2+P.reduced, P.reduced:s_val[i, 1]+P.reduced]
             y_batch = np.zeros(y_batch_temp.shape).astype(np.float32)
             y_batch[:] = y_batch_temp[:]
             if P.gpu >= 0:
                 x_batch = cuda.to_gpu(x_batch)
+                m_batch = cuda.to_gpu(m_batch)
                 y_batch = cuda.to_gpu(y_batch)
             optimizer.zero_grads()
-            loss = forward(x_batch, y_batch, model)
+            loss = forward(x_batch, m_batch, y_batch, model)
             sum_loss_val += float(cuda.to_cpu(loss.data))
 
             x_batch_temp = x_val[i:i+1, 0:1, s_val[i, 0]/2:s_val[i, 0]+2*P.reduced, 0:s_val[i, 1]+2*P.reduced]
             x_batch = np.zeros(x_batch_temp.shape).astype(np.float32)
             x_batch[:] = x_batch_temp[:]
+            m_batch_temp = m_val[i:i+1, 0:2, s_val[i, 0]/2+P.reduced:s_val[i, 0]+P.reduced, P.reduced:s_val[i, 1]+P.reduced]
+            m_batch = np.zeros(m_batch_temp.shape).astype(np.float32)
+            m_batch[:] = m_batch_temp[:]
             y_batch_temp = y_val[i:i+1, 0:1, s_val[i, 0]/2+P.reduced:s_val[i, 0]+P.reduced, P.reduced:s_val[i, 1]+P.reduced]
             y_batch = np.zeros(y_batch_temp.shape).astype(np.float32)
             y_batch[:] = y_batch_temp[:]
             if P.gpu >= 0:
                 x_batch = cuda.to_gpu(x_batch)
+                m_batch = cuda.to_gpu(m_batch)
                 y_batch = cuda.to_gpu(y_batch)
             optimizer.zero_grads()
-            loss = forward(x_batch, y_batch, model)
+            loss = forward(x_batch, m_batch, y_batch, model)
             sum_loss_val += float(cuda.to_cpu(loss.data))
 
         sum_loss_val /= x_val.shape[0]
@@ -191,16 +213,17 @@ def train(model, optimizer):
                 optimizer.lr *= 0.1
                 drop_count = 0
 
-def forward(x_data, y_data, model):
+def forward(x_data, m_data, y_data, model):
     x = Variable(x_data)
+    m = Variable(m_data)
     y = Variable(y_data)
     h = F.relu(model.conv1(x))
     h = F.relu(model.conv2(h))
     h = F.relu(model.conv3(h))
     h = F.relu(model.conv4(h))
     h = F.relu(model.conv5(h))
-    #h = F.relu(model.conv6(h))
-    h = F.relu(model.conv7(h))
+    h = F.relu(model.conv6(h))
+    h = F.relu(model.conv7(F.concat([m, h])))
     h = F.relu(model.conv8(h))
     return F.mean_squared_error(h, y)
 
@@ -228,7 +251,7 @@ def main():
             conv3 = F.Convolution2D(128, 128, 3, stride=1),
             conv4 = F.Convolution2D(128, 128, 3, stride=1),
             conv5 = F.Convolution2D(128, 128, 3, stride=1),
-            conv6 = F.Convolution2D(128, 128, 3, stride=1),
+            conv6 = F.Convolution2D(128, 126, 3, stride=1),
             conv7 = F.Convolution2D(128, 128, 1, stride=1),
             conv8 = F.Convolution2D(128, 1, 1, stride=1)
             )
